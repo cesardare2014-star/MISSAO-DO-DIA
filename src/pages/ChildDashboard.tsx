@@ -1,137 +1,70 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { AVATARS, ACCESSORIES, STREAK_REWARDS, MISSION_MILESTONE, MAX_CHESTS_PER_DAY, SURPRISE_CHANCE } from '../types';
-import { getWeekDays, getWeekDay, getToday } from '../lib/utils';
-import { playSound, vibrate } from '../lib/sounds';
-import confetti from 'canvas-confetti';
+import { AVATARS } from '../types';
 
-type ChestSource = 'points' | 'streak' | 'mission' | 'surprise';
-
-export default function ChildDashboard() {
-  const { childId } = useParams<{ childId: string }>();
+export default function ChildSelect() {
   const navigate = useNavigate();
-  const { state, dispatch } = useApp();
-
-  const [showReward, setShowReward] = useState<string | null>(null);
-  const [showRewardRarity, setShowRewardRarity] = useState<'common' | 'rare' | 'epic'>('common');
-  const [showRewardSource, setShowRewardSource] = useState<ChestSource>('points');
-  const [showAccessoryShop, setShowAccessoryShop] = useState(false);
-  const [tab, setTab] = useState<'missions' | 'rewards' | 'progress' | 'shop'>('missions');
-  const [openingChest, setOpenChest] = useState<{ id: string; source: ChestSource } | null>(null);
-  const [chestPhase, setChestPhase] = useState<'idle' | 'shaking' | 'opening' | 'revealed'>('idle');
-  const [revealedReward, setRevealedReward] = useState<string | null>(null);
-  const [starBurst, setStarBurst] = useState(false);
-  const [showSurprise, setShowSurprise] = useState(false);
-  const [showLimitWarning, setShowLimitWarning] = useState(false);
-
-  const child = state.children.find(c => c.id === childId);
-  const avatarData = AVATARS.find(a => a.id === child?.avatar);
-  const weekDays = getWeekDays();
-  const todayIndex = getWeekDay();
-  const today = getToday();
-
-  // 🔥 CORREÇÃO GLOBAL DE RARIDADE
-  const rarityMap: Record<string, 'common' | 'rare' | 'epic'> = {
-    bronze: 'common',
-    silver: 'rare',
-    gold: 'epic',
-    diamond: 'epic',
-  };
-
-  const getSafeRarity = (rarity: string, rc: any): 'common' | 'rare' | 'epic' => {
-    if (rc[rarity]) return rarity;
-    if (rarityMap[rarity]) return rarityMap[rarity];
-    return 'common';
-  };
-
-  const myTasks = useMemo(() => state.tasks.filter(t => t.assignedTo.includes(childId || '')), [state.tasks, childId]);
-
-  const todayCompletions = useMemo(() =>
-    state.completions.filter(c => c.childId === childId && c.date === today),
-    [state.completions, childId, today]
-  );
-
-  const pendingTaskIds = useMemo(() => todayCompletions.filter(c => c.status === 'pending').map(c => c.taskId), [todayCompletions]);
-  const approvedTaskIds = useMemo(() => todayCompletions.filter(c => c.status === 'approved').map(c => c.taskId), [todayCompletions]);
-
-  useEffect(() => {
-    if (child && child.lastChestDate !== today) {
-      dispatch({ type: 'RESET_DAILY_CHESTS', payload: { childId: child.id } });
-    }
-  }, [child?.id, child?.lastChestDate, today, dispatch]);
-
-  const chestsOpenedToday = child?.lastChestDate === today ? (child.chestsOpenedToday || 0) : 0;
-  const canOpenMore = chestsOpenedToday < MAX_CHESTS_PER_DAY;
-
-  const handleOpenChest = useCallback((chestId: string, source: ChestSource) => {
-    if (!child) return;
-    const chest = state.chests.find(c => c.id === chestId);
-    if (!chest) return;
-
-    const safeRarity = getSafeRarity(chest.rarity, rc);
-
-    setOpenChest({ id: chestId, source });
-    setChestPhase('shaking');
-
-    setTimeout(() => {
-      setChestPhase('opening');
-    }, 1000);
-
-    setTimeout(() => {
-      const reward = chest.rewards[Math.floor(Math.random() * chest.rewards.length)];
-      setRevealedReward(reward);
-      setShowRewardRarity(safeRarity);
-      setChestPhase('revealed');
-
-      dispatch({
-        type: source === 'points' ? 'OPEN_CHEST_BY_POINTS' : 'OPEN_FREE_CHEST',
-        payload: { childId: child.id }
-      });
-
-      confetti();
-    }, 2000);
-  }, [child, state.chests, dispatch]);
-
-  const rc: Record<string, any> = {
-    common: { glow: 'glow-common' },
-    rare: { glow: 'glow-rare' },
-    epic: { glow: 'glow-epic' }
-  };
-
-  if (!child) return <div>Perfil não encontrado</div>;
+  const { state } = useApp();
 
   return (
-    <div>
-      {state.chests.map(chest => {
-        const safeRarity = getSafeRarity(chest.rarity, rc);
-        const r = rc[safeRarity];
+    <div className="min-h-screen p-6 flex flex-col items-center justify-center bg-pattern stripes-pattern"
+      style={{ background: 'linear-gradient(160deg, #0a0520 0%, #150a35 30%, #0d0830 60%, #0a0520 100%)' }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center mb-10"
+      >
+        <motion.div
+          animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1] }}
+          transition={{ duration: 3, repeat: Infinity }}
+          className="text-6xl mb-3"
+        >🎮</motion.div>
+        <h2 className="text-3xl font-bungee text-outline text-white mb-1">QUEM ESTÁ JOGANDO?</h2>
+        <p className="text-purple-300/40 text-sm font-bold">Escolha seu avatar</p>
+      </motion.div>
 
-        return (
-          <div key={chest.id}>
-            <p>{chest.name}</p>
-            <button onClick={() => handleOpenChest(chest.id, 'points')}>
-              Abrir Baú
-            </button>
-          </div>
-        );
-      })}
-
-      <AnimatePresence>
-        {openingChest && (
-          <motion.div>
-            {chestPhase === 'shaking' && <div>🎁</div>}
-            {chestPhase === 'opening' && <div>💥</div>}
-            {chestPhase === 'revealed' && (
-              <div>
-                <p>{revealedReward}</p>
-                <button onClick={() => setOpenChest(null)}>Fechar</button>
+      <div className="w-full max-w-sm space-y-3 mb-10">
+        {state.children.map((child, i) => {
+          const avatarData = AVATARS.find(a => a.id === child.avatar);
+          return (
+            <motion.button
+              key={child.id}
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1, type: 'spring', damping: 12 }}
+              whileHover={{ scale: 1.03, x: 5 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate(`/child/${child.id}`)}
+              className="card-brawl w-full p-5 rounded-2xl bg-purple-900/50 flex items-center gap-4 hover:border-purple-400/40 transition-colors"
+            >
+              <div className="text-5xl drop-shadow-[0_0_15px_rgba(168,85,247,0.3)]">{avatarData?.emoji}</div>
+              <div className="flex-1 text-left">
+                <p className="text-white font-bungee text-lg text-outline-sm">{child.name}</p>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-yellow-400 font-extrabold text-sm bg-yellow-500/15 px-2 py-0.5 rounded-lg border border-yellow-500/20">⭐ {child.points ?? 0}</span>
+                  {child.streak > 0 && (
+                    <span className="text-orange-400 font-extrabold text-sm bg-orange-500/15 px-2 py-0.5 rounded-lg border border-orange-500/20">🔥 {child.streak}</span>
+                  )}
+                </div>
               </div>
-            )}
-          </motion.div>
+              <span className="text-purple-400/30 text-2xl">→</span>
+            </motion.button>
+          );
+        })}
+        {state.children.length === 0 && (
+          <div className="text-center py-16">
+            <div className="text-6xl mb-4">👶</div>
+            <p className="text-purple-300/50 font-bold">Nenhum perfil cadastrado</p>
+            <p className="text-purple-300/30 text-sm mt-1 font-bold">Peça aos pais para criar perfis</p>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
+
+      <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate('/')}
+        className="text-purple-400/40 hover:text-purple-300 transition-colors text-sm font-bold"
+      >← Voltar</motion.button>
     </div>
   );
 }
